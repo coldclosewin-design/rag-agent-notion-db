@@ -49,6 +49,13 @@ python scripts/ingest.py --sample   # sample_docs/ 색인
 streamlit run app.py                # 브라우저에서 질문
 ```
 
+> 💡 **명령어는 항상 프로젝트 폴더에서 + 가상환경 활성화 후** 실행해야 합니다:
+> ```powershell
+> cd C:\Project\11_rag-agent-notion-db   # (본인의 클론 경로)
+> .\.venv\Scripts\Activate.ps1           # 프롬프트에 (.venv)가 붙으면 성공
+> ```
+> 터미널 없이 쓰려면 **`run_app.bat`(앱 실행) / `run_ingest.bat`(재수집)을 더블클릭**하면 됩니다.
+
 "RAG가 뭐야?", "LangGraph의 조건부 엣지란?" 같은 질문을 던져보세요.
 
 ### 4. 실제 Notion DB 연결
