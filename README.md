@@ -83,6 +83,9 @@ streamlit run app.py                # 브라우저에서 질문
 
 구현 과정과 설계 의도를 단계별로 정리했습니다. 순서대로 읽는 것을 권장합니다.
 
+> 🖼️ **한 장 요약 리포트**: [docs/report.html](docs/report.html) — 아키텍처·그래프 흐름도·검증 결과·트러블슈팅 타임라인을 시각화한 HTML 리포트입니다.
+> GitHub에서는 HTML이 소스로만 보이므로, ① 로컬에서 파일을 브라우저로 열거나 ② 저장소 Settings → Pages를 켜면(`main` 브랜치 `/docs` 폴더) `https://coldclosewin-design.github.io/rag-agent-notion-db/report.html` 에서 렌더링된 화면을 볼 수 있습니다.
+
 | 문서 | 내용 |
 |---|---|
 | [00-notion-setup.md](docs/00-notion-setup.md) | Notion Integration 생성부터 DB ID 확인까지 셋업 가이드 |

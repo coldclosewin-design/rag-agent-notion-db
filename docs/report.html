@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAG Agent with Notion DB — 스터디 리포트</title>
+<style>
+  :root {
+    --paper: #f4f6f5;
+    --card: #ffffff;
+    --ink: #1a2420;
+    --muted: #5e7268;
+    --pine: #0e6a56;
+    --pine-soft: #e2efeb;
+    --amber: #a86b12;
+    --amber-soft: #f7efe0;
+    --line: #d8e0dc;
+    --mono: Consolas, "D2Coding", "Courier New", monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
+    line-height: 1.65;
+    font-size: 15px;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
+
+  /* ---------- header ---------- */
+  header { margin-bottom: 40px; }
+  .eyebrow {
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--pine); font-weight: 700; margin-bottom: 10px;
+  }
+  h1 {
+    font-size: clamp(26px, 4.5vw, 38px); line-height: 1.25; margin: 0 0 12px;
+    font-weight: 800; letter-spacing: -0.02em; text-wrap: balance;
+  }
+  .lede { color: var(--muted); max-width: 62ch; margin: 0 0 20px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 14px; font-size: 13px; color: var(--muted);
+  }
+  .chip strong { color: var(--ink); font-weight: 700; }
+  .chip.ok { border-color: #b5d6c9; background: var(--pine-soft); color: var(--pine); font-weight: 700; }
+
+  /* ---------- sections ---------- */
+  section { margin-top: 52px; }
+  h2 {
+    font-size: 20px; font-weight: 800; letter-spacing: -0.01em;
+    margin: 0 0 6px; display: flex; align-items: baseline; gap: 10px;
+  }
+  h2 .no {
+    font-family: var(--mono); font-size: 13px; color: var(--pine); font-weight: 700;
+  }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; max-width: 68ch; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 22px 24px;
+  }
+
+  /* ---------- pipeline diagram ---------- */
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; }
+  .flow-col { flex: 1 1 150px; min-width: 140px; display: flex; flex-direction: column; gap: 8px; }
+  .stage {
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 14px; text-align: center;
+  }
+  .stage b { display: block; font-size: 14px; }
+  .stage span { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+  .stage.src { border-left: 3px solid var(--amber); }
+  .stage.store { border-left: 3px solid var(--pine); background: var(--pine-soft); }
+  .arrow {
+    flex: 0 0 34px; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 18px;
+  }
+  .flow-label {
+    font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; margin-bottom: 10px;
+  }
+  .flow-block + .flow-block { margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--line); }
+
+  /* ---------- graph svg ---------- */
+  .svgbox { overflow-x: auto; }
+  svg text { font-family: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+
+  /* ---------- verification table ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  .pill {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; white-space: nowrap;
+  }
+  .pill.pass { background: var(--pine-soft); color: var(--pine); }
+  td .num { font-variant-numeric: tabular-nums; font-family: var(--mono); }
+
+  /* ---------- timeline ---------- */
+  .tl { list-style: none; margin: 0; padding: 0; }
+  .tl li { position: relative; padding: 0 0 26px 34px; }
+  .tl li:last-child { padding-bottom: 0; }
+  .tl li::before {
+    content: ""; position: absolute; left: 9px; top: 26px; bottom: 4px;
+    width: 2px; background: var(--line);
+  }
+  .tl li:last-child::before { display: none; }
+  .tl .dot {
+    position: absolute; left: 0; top: 4px; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--amber-soft); border: 2px solid var(--amber);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; color: var(--amber); font-family: var(--mono);
+  }
+  .tl b { display: block; margin-bottom: 2px; }
+  .tl .fix { color: var(--pine); font-weight: 700; }
+  .tl p { margin: 4px 0 0; color: var(--muted); font-size: 14px; max-width: 66ch; }
+  .tl code { font-family: var(--mono); font-size: 12.5px; background: var(--paper); padding: 1px 6px; border-radius: 4px; }
+
+  /* ---------- docs grid ---------- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .doc { border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; background: var(--card); }
+  .doc .fname { font-family: var(--mono); font-size: 12px; color: var(--pine); font-weight: 700; }
+  .doc b { display: block; margin: 4px 0 2px; font-size: 14px; }
+  .doc p { margin: 0; font-size: 13px; color: var(--muted); }
+
+  /* ---------- commands ---------- */
+  pre {
+    background: #1c2622; color: #dce8e2; border-radius: 8px;
+    padding: 16px 18px; overflow-x: auto; font-family: var(--mono);
+    font-size: 13px; line-height: 1.8; margin: 0;
+  }
+  pre .c { color: #7fa392; }
+  pre .p { color: #f0c674; }
+
+  footer { margin-top: 60px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
+  a { color: var(--pine); }
+  @media (prefers-reduced-motion: no-preference) {
+    section { animation: rise .5s ease both; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">LangGraph Study Project · 2026-07-04</div>
+    <h1>📚 RAG Agent with Notion DB<br>구현 스터디 리포트</h1>
+    <p class="lede">
+      Notion 데이터베이스를 지식 소스로 삼아, 질문하면 관련 문서를 검색하고
+      검색이 부실하면 <strong>스스로 쿼리를 재작성해 재검색</strong>하는
+      self-corrective RAG 에이전트를 만들었습니다.
+    </p>
+    <div class="meta">
+      <span class="chip ok">✓ 전체 검증 통과 · GitHub 푸시 완료</span>
+      <span class="chip">LLM <strong>gpt-4o-mini</strong></span>
+      <span class="chip">임베딩 <strong>text-embedding-3-small</strong></span>
+      <span class="chip">벡터 <strong>Chroma</strong></span>
+      <span class="chip">UI <strong>Streamlit</strong></span>
+      <span class="chip">수집 <strong>Notion API × 28 DB</strong></span>
+    </div>
+  </header>
+
+  <section>
+    <h2><span class="no">01</span>전체 아키텍처</h2>
+    <p class="sub">수집(가끔, 오프라인)과 질의(매번, 온라인)를 분리한 것이 설계의 뼈대입니다.
+    덕분에 Notion 없이도 <code style="font-family:var(--mono)">--sample</code> 모드로 질의 흐름 전체를 개발·테스트할 수 있었습니다.</p>
+    <div class="card">
+      <div class="flow-block">
+        <div class="flow-label">수집 흐름 — scripts/ingest.py</div>
+        <div class="flow">
+          <div class="flow-col">
+            <div class="stage src"><b>Notion DB</b><span>data_sources.query</span></div>
+            <div class="stage src"><b>sample_docs/</b><span>--sample 모드</span></div>
+          </div>
+          <div class="arrow">→</div>
+          <div class="flow-col"><div class="stage" style="height:100%"><b>Markdown 변환</b><span>블록 트리 + 속성 추출</span></div></div>
+          <div class="arrow">→</div>
+          <div class="flow-col"><div class="stage" style="height:100%"><b>청킹</b><span>800자 / overlap 100</span></div></div>
+          <div class="arrow">→</div>
+          <div class="flow-col"><div class="stage" style="height:100%"><b>임베딩</b><span>1536차원 벡터</span></div></div>
+          <div class="arrow">→</div>
+          <div class="flow-col"><div class="stage store" style="height:100%"><b>Chroma</b><span>chroma_db/ persist</span></div></div>
+        </div>
+      </div>
+      <div class="flow-block">
+        <div class="flow-label">질의 흐름 — LangGraph + Streamlit</div>
+        <div class="flow">
+          <div class="flow-col"><div class="stage"><b>질문</b><span>st.chat_input</span></div></div>
+          <div class="arrow">→</div>
+          <div class="flow-col"><div class="stage store"><b>Chroma 검색</b><span>top-k = 4</span></div></div>
+          <div class="arrow">→</div>
+          <div class="flow-col"><div class="stage"><b>RAG 그래프</b><span>아래 02 참조</span></div></div>
+          <div class="arrow">→</div>
+          <div class="flow-col"><div class="stage"><b>답변 + 출처</b><span>expander로 근거 표시</span></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="no">02</span>LangGraph — self-corrective 그래프</h2>
+    <p class="sub">단순 retrieve→generate가 아니라, 검색 결과를 LLM이 <strong>재평가(grade)</strong>하고
+    전부 무관하면 <strong>쿼리를 재작성해 재검색(최대 2회)</strong>합니다. 점선이 조건부 엣지입니다.</p>
+    <div class="card svgbox">
+      <svg viewBox="0 0 760 300" width="100%" style="min-width:620px" role="img" aria-label="LangGraph 흐름도">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="#5e7268"/>
+          </marker>
+          <marker id="ahp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="#0e6a56"/>
+          </marker>
+        </defs>
+        <!-- START -->
+        <ellipse cx="70" cy="60" rx="46" ry="24" fill="#e2efeb" stroke="#0e6a56"/>
+        <text x="70" y="65" text-anchor="middle" font-size="13" font-weight="700" fill="#0e6a56">START</text>
+        <!-- retrieve -->
+        <rect x="170" y="36" width="130" height="48" rx="8" fill="#fff" stroke="#5e7268"/>
+        <text x="235" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#1a2420">retrieve</text>
+        <text x="235" y="74" text-anchor="middle" font-size="11" fill="#5e7268">top-k 검색</text>
+        <!-- grade -->
+        <rect x="350" y="36" width="160" height="48" rx="8" fill="#fff" stroke="#5e7268"/>
+        <text x="430" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#1a2420">grade_documents</text>
+        <text x="430" y="74" text-anchor="middle" font-size="11" fill="#5e7268">관련성 yes/no 평가</text>
+        <!-- generate -->
+        <rect x="565" y="36" width="130" height="48" rx="8" fill="#e2efeb" stroke="#0e6a56"/>
+        <text x="630" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#0e6a56">generate</text>
+        <text x="630" y="74" text-anchor="middle" font-size="11" fill="#0e6a56">답변 + 출처</text>
+        <!-- END -->
+        <ellipse cx="630" cy="170" rx="42" ry="22" fill="#e2efeb" stroke="#0e6a56"/>
+        <text x="630" y="175" text-anchor="middle" font-size="13" font-weight="700" fill="#0e6a56">END</text>
+        <!-- rewrite -->
+        <rect x="290" y="180" width="150" height="48" rx="8" fill="#f7efe0" stroke="#a86b12"/>
+        <text x="365" y="201" text-anchor="middle" font-size="14" font-weight="700" fill="#a86b12">rewrite_query</text>
+        <text x="365" y="218" text-anchor="middle" font-size="11" fill="#a86b12">retry_count +1</text>
+        <!-- edges -->
+        <line x1="116" y1="60" x2="166" y2="60" stroke="#5e7268" stroke-width="1.6" marker-end="url(#ah)"/>
+        <line x1="300" y1="60" x2="346" y2="60" stroke="#5e7268" stroke-width="1.6" marker-end="url(#ah)"/>
+        <!-- grade -> generate (conditional) -->
+        <line x1="510" y1="60" x2="561" y2="60" stroke="#0e6a56" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ahp)"/>
+        <text x="536" y="48" text-anchor="middle" font-size="10.5" fill="#0e6a56">문서 있음</text>
+        <!-- generate -> END -->
+        <line x1="630" y1="84" x2="630" y2="144" stroke="#5e7268" stroke-width="1.6" marker-end="url(#ah)"/>
+        <!-- grade -> rewrite (conditional) -->
+        <path d="M 430 84 L 430 150 L 400 176" fill="none" stroke="#a86b12" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+        <text x="452" y="130" font-size="10.5" fill="#a86b12">없음 · retry &lt; 2</text>
+        <!-- rewrite -> retrieve loop -->
+        <path d="M 290 204 L 235 204 L 235 88" fill="none" stroke="#a86b12" stroke-width="1.6" marker-end="url(#ah)"/>
+        <text x="205" y="150" font-size="10.5" fill="#a86b12" text-anchor="middle">재검색</text>
+        <!-- grade -> generate fallback -->
+        <path d="M 480 84 L 520 250 L 640 250 L 640 196" fill="none" stroke="#5e7268" stroke-width="1.4" stroke-dasharray="3 4" marker-end="url(#ah)"/>
+        <text x="560" y="268" font-size="10.5" fill="#5e7268">재시도 소진 → "찾지 못했습니다" 안내</text>
+      </svg>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="no">03</span>검증 결과</h2>
+    <p class="sub">단계마다 실행 가능한 검증을 두고 진행했습니다. 모든 항목이 실제 실행으로 확인되었습니다.</p>
+    <div class="card" style="padding: 8px 12px;">
+      <table>
+        <thead><tr><th>검증 항목</th><th>방법</th><th>결과</th></tr></thead>
+        <tbody>
+          <tr><td>스모크 테스트</td><td>pytest — 청킹, 그래프 구조, 블록 변환 (API 미호출)</td><td><span class="pill pass">4/4 통과</span></td></tr>
+          <tr><td>샘플 색인</td><td><span class="num">--sample</span> 모드: 문서 4 → 청크 5 색인 후 유사도 검색</td><td><span class="pill pass">통과</span></td></tr>
+          <tr><td>그래프 E2E (정상)</td><td>"조건부 엣지란?" → 출처 포함 답변, 재작성 0회</td><td><span class="pill pass">통과</span></td></tr>
+          <tr><td>그래프 E2E (교정)</td><td>"저녁 메뉴 추천" → 재작성 2회 후 정직한 안내</td><td><span class="pill pass">통과</span></td></tr>
+          <tr><td>Streamlit UI</td><td>브라우저에서 채팅 + 출처 expander 렌더링 확인</td><td><span class="pill pass">통과</span></td></tr>
+          <tr><td>실제 Notion 수집</td><td>28개 DB 자동 발견 → <span class="num">519</span>페이지 → <span class="num">573</span>청크</td><td><span class="pill pass">28/28 성공</span></td></tr>
+          <tr><td>실데이터 E2E</td><td>"메타인지" 질문 → 실제 노트 내용 기반 답변 + 출처</td><td><span class="pill pass">통과</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="no">04</span>트러블슈팅 여정</h2>
+    <p class="sub">실제 개발 중 부딪힌 문제들 — 순서대로 해결했고, 각 교훈은 코드와 스터디 문서에 반영되어 있습니다.</p>
+    <div class="card">
+      <ol class="tl">
+        <li>
+          <span class="dot">1</span>
+          <b>Notion 신규 API — <code>databases.query</code>가 사라짐</b>
+          <p>notion-client 3.x는 2025-09 API를 사용해 조회가 <strong>데이터 소스 단위</strong>로 바뀜.
+          <span class="fix">해결:</span> DB ID → 데이터 소스 ID 해석 단계 추가 (<code>data_sources.query</code>).</p>
+        </li>
+        <li>
+          <span class="dot">2</span>
+          <b>ID 복사 함정 — 연결됐는데도 8개 DB 전부 404</b>
+          <p>URL에서 손으로 복사한 ID가 실제 데이터 소스 ID와 다른 값이었음.
+          <span class="fix">해결:</span> search API로 접근 가능한 DB를 <strong>자동 발견</strong>하는
+          <code>NOTION_DATABASE_ID=auto</code> 모드 구현 → ID 복사 자체를 없앰.</p>
+        </li>
+        <li>
+          <span class="dot">3</span>
+          <b>Windows 파일 잠금 — 재색인 시 PermissionError</b>
+          <p>Streamlit이 Chroma 파일을 열고 있으면 폴더 삭제(rmtree)가 실패.
+          <span class="fix">해결:</span> 폴더 삭제 대신 <strong>컬렉션 리셋</strong>(<code>reset_collection()</code>)으로 전환.</p>
+        </li>
+        <li>
+          <span class="dot">4</span>
+          <b>빈 문서 함정 — 검색은 되는데 답할 내용이 없음</b>
+          <p>명언집·단어장류 DB는 내용이 본문이 아닌 <strong>속성(컬럼)</strong>에 저장되어 있었음.
+          <span class="fix">해결:</span> rich_text·select·date 등 속성을 <code>- 속성명: 값</code> 텍스트로 함께 추출.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="no">05</span>스터디 문서 가이드</h2>
+    <p class="sub">"왜 이렇게 설계했는가"를 중심으로 정리했습니다. 순서대로 읽는 것을 권장합니다.</p>
+    <div class="grid">
+      <div class="doc"><span class="fname">docs/00-notion-setup.md</span><b>Notion 셋업 가이드</b><p>Integration 생성 → DB 연결 → auto 모드. 자주 나는 오류 표 포함.</p></div>
+      <div class="doc"><span class="fname">docs/01-architecture.md</span><b>전체 아키텍처</b><p>수집/질의 분리 이유와 기술 선택 근거.</p></div>
+      <div class="doc"><span class="fname">docs/02-ingestion.md</span><b>수집 파이프라인</b><p>블록 파싱, 속성 추출, 청킹 전략(800자/overlap 100)의 이유.</p></div>
+      <div class="doc"><span class="fname">docs/03-langgraph.md</span><b>⭐ 그래프 설계</b><p>State 설계, 노드/조건부 엣지, structured output, 심화 과제.</p></div>
+      <div class="doc"><span class="fname">docs/04-streamlit.md</span><b>Streamlit UI</b><p>cache_resource, session_state, RAG 내부 동작 시각화.</p></div>
+      <div class="doc"><span class="fname">README.md</span><b>빠른 시작</b><p>설치부터 샘플 모드 → 실제 Notion 연결까지.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="no">06</span>일상 사용 명령어</h2>
+    <div class="card" style="padding:0; overflow:hidden;">
+<pre><span class="c"># Notion 문서가 바뀌면 재수집 (연결된 모든 DB 자동 발견)</span>
+<span class="p">python</span> scripts/ingest.py
+
+<span class="c"># 채팅 UI 실행 → http://localhost:8501</span>
+<span class="p">streamlit</span> run app.py
+
+<span class="c"># 테스트 / 그래프 다이어그램 재생성</span>
+<span class="p">python</span> -m pytest tests/ -v
+<span class="p">python</span> scripts/draw_graph.py</pre>
+    </div>
+  </section>
+
+  <footer>
+    저장소: <a href="https://github.com/coldclosewin-design/rag-agent-notion-db">github.com/coldclosewin-design/rag-agent-notion-db</a>
+    · 25 files · main 브랜치 · 심화 과제 아이디어는 docs/03-langgraph.md 참고
+  </footer>
+</div>
+
+</body>
+</html>
