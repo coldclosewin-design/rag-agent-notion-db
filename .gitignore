@@ -1,0 +1,20 @@
+# 환경 변수 (API 키 포함 - 절대 커밋 금지)
+.env
+
+# 벡터 스토어 데이터
+chroma_db/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# IDE / OS / 로컬 도구
+.vscode/
+.idea/
+.claude/
+Thumbs.db
+.DS_Store
